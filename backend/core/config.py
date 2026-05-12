@@ -136,3 +136,23 @@ def resolve_bot_id(name: str) -> str:
     if name.isdigit():
         return name
     return settings.DEFAULT_BOT_ID
+
+
+# 文生图专用模型映射
+IMAGE_BOT_MAP: Dict[str, str] = {
+    "dall-e-3":         "7033778298541147188",
+    "dall-e-2":         "7033778298541147188",
+    "image-3":          "7033778298541147188",
+    "image-2":          "7033778298541147188",
+    "doubao-image":     "7033778298541147188",
+    "doubao-image-3":   "7033778298541147188",
+}
+
+
+def resolve_image_bot_id(name: str) -> str:
+    """解析文生图模型的 bot_id"""
+    if name in IMAGE_BOT_MAP:
+        return IMAGE_BOT_MAP[name]
+    if name.isdigit():
+        return name
+    return "7033778298541147188"  # 默认文生图机器人

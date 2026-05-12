@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from backend.core.config import resolve_bot_id, settings, API_KEYS
+from backend.core.config import resolve_image_bot_id, settings, API_KEYS
 from backend.services.doubao_client import DoubaoClient
 
 log = logging.getLogger("doubao2api.images")
@@ -149,7 +149,7 @@ async def images_generations(request: Request):
 
     stream = req_data.get("stream", False)
 
-    bot_id = resolve_bot_id(model_name)
+    bot_id = resolve_image_bot_id(model_name)
     completion_id = f"imggen-{uuid.uuid4().hex[:12]}"
     created = int(time.time())
 
