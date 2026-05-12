@@ -1,14 +1,18 @@
-# Stage: Backend + Final Image
 FROM python:${PYTHON_VERSION:-3.12}-slim
 WORKDIR /workspace
 
-ARG PIP_INDEX_URL=https://pypi.org/simple
-ARG PIP_TRUSTED_HOST=pypi.org
+ARG CHINA_MIRROR=""
 
-ENV PIP_INDEX_URL=${PIP_INDEX_URL}
-ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
+ENV PIP_INDEX_URL=https://pypi.org/simple
+ENV PIP_TRUSTED_HOST=pypi.org
 
-# Install system dependencies for headless Chromium (Playwright)
+RUN if [ -n "$CHINA_MIRROR" ]; then \
+        echo "deb http://mirrors.aliyun.com/debian/ trixie main non-free-firmware" > /etc/apt/sources.list && \
+        echo "deb http://mirrors.aliyun.com/debian-security/ trixie-security main non-free-firmware" >> /etc/apt/sources.list && \
+        echo "deb http://mirrors.aliyun.com/debian/ trixie-updates main non-free-firmware" >> /etc/apt/sources.list && \
+        echo "Acquire::http::Proxy \"http://mirrors.aliyun.com\";" > /etc/apt/apt.conf.d/99proxy || true; \
+    fi
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
@@ -43,9 +47,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST} -r backend/requirements.txt
+RUN pip install --no-cache-dir -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST} -r backend/requirements.txt || \
+    pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r backend/requirements.txt
 
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=""
+ENV PLAYWRIGHT_DOWNLOAD_HOST=""
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 
 RUN if [ -n "$CHINA_MIRROR" ]; then \
@@ -58,7 +63,6 @@ RUN if [ -n "$CHINA_MIRROR" ]; then \
 COPY backend/ ./backend/
 COPY start.py ./
 
-# Create data and logs directories
 RUN mkdir -p /workspace/data /workspace/logs
 
 EXPOSE 7861
