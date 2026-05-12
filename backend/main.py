@@ -27,7 +27,7 @@ from backend.core.database import AsyncJsonDB
 from backend.core.browser_engine import BrowserEngine
 from backend.core.account_pool import AccountPool
 from backend.services.doubao_client import DoubaoClient
-from backend.api import admin, v1_chat, probes
+from backend.api import admin, v1_chat, v1_images, probes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("doubao2api")
@@ -94,6 +94,7 @@ app.add_middleware(
 
 # 挂载路由
 app.include_router(v1_chat.router, tags=["OpenAI Compatible"])
+app.include_router(v1_images.router, tags=["OpenAI Compatible"])
 app.include_router(probes.router, tags=["Probes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Dashboard Admin"])
 

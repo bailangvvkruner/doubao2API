@@ -1,6 +1,12 @@
 # Stage: Backend + Final Image
-FROM python:3.12-slim
+FROM python:${PYTHON_VERSION:-3.12}-slim
 WORKDIR /workspace
+
+ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_TRUSTED_HOST=pypi.org
+
+ENV PIP_INDEX_URL=${PIP_INDEX_URL}
+ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
 
 # Install system dependencies for headless Chromium (Playwright)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,10 +43,17 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir -i ${PIP_INDEX_URL} --trusted-host ${PIP_TRUSTED_HOST} -r backend/requirements.txt
 
-# Download Playwright Chromium at build time
-RUN python -m playwright install chromium
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=""
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+
+RUN if [ -n "$CHINA_MIRROR" ]; then \
+        export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright; \
+        python -m playwright install --with-deps chromium; \
+    else \
+        python -m playwright install --with-deps chromium; \
+    fi
 
 COPY backend/ ./backend/
 COPY start.py ./

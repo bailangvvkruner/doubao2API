@@ -1,0 +1,101 @@
+name: Build and Push
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image Tag (default: latest)'
+        required: false
+        default: 'latest'
+      use_china_mirror:
+        description: 'Use China Mirror (PyPI/Playwright)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.12'
+  DOCKER_BUILDKIT: '1'
+  DOCKER_REGISTRY: 'docker.io'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Calculate variables
+        id: vars
+        run: |
+          TAG=${{ github.event.inputs.image_tag || 'latest' }}
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${TAG:-latest}-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:8}"
+          fi
+          echo "image_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "use_china_mirror=${{ github.event.inputs.use_china_mirror || 'false' }}" >> $GITHUB_OUTPUT
+          echo "short_sha=${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push with China Mirror
+        if: ${{ steps.vars.outputs.use_china_mirror == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/doubao2api:${{ steps.vars.outputs.image_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/doubao2api:${{ steps.vars.outputs.short_sha }}
+          build-args: |
+            PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+            PIP_TRUSTED_HOST=mirrors.aliyun.com
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+            CHINA_MIRROR=1
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Build and Push (Default)
+        if: ${{ steps.vars.outputs.use_china_mirror != 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/doubao2api:${{ steps.vars.outputs.image_tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/doubao2api:${{ steps.vars.outputs.short_sha }}
+          build-args: |
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Tag | ${{ steps.vars.outputs.image_tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit SHA | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| China Mirror | ${{ steps.vars.outputs.use_china_mirror }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platforms | linux/amd64, linux/arm64 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Full Image Name:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`${{ secrets.DOCKERHUB_USERNAME }}/doubao2api:${{ steps.vars.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
